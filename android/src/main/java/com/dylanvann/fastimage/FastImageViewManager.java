@@ -1,8 +1,12 @@
 package com.dylanvann.fastimage;
 
+import android.app.Activity;
+import android.os.Build;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -39,12 +43,21 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
 
     @Override
     protected FastImageViewWithUrl createViewInstance(ThemedReactContext reactContext) {
-        requestManager = Glide.with(reactContext);
-        return new FastImageViewWithUrl(reactContext);
+        final FastImageViewWithUrl instance = new FastImageViewWithUrl(reactContext);
+
+        if (reactContext == null) return instance;
+        final Activity activity = reactContext.getCurrentActivity();
+        if (activity == null) return instance;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && activity.isDestroyed()) return instance;
+
+        requestManager = Glide.with(activity);
+        return instance;
     }
 
     @ReactProp(name = "source")
     public void setSrc(FastImageViewWithUrl view, @Nullable ReadableMap source) {
+        if (requestManager == null) return;
+
         if (source == null) {
             // Cancel existing requests.
             requestManager.clear(view);
@@ -87,6 +100,7 @@ class FastImageViewManager extends SimpleViewManager<FastImageViewWithUrl> imple
                 //    - data:image/png;base64
                 .load(stringUrl.startsWith("http") ? glideUrl : stringUrl)
                 .apply(FastImageViewConverter.getOptions(source))
+                .transition(DrawableTransitionOptions.withCrossFade())
                 .listener(new FastImageRequestListener(key))
                 .into(view);
     }
